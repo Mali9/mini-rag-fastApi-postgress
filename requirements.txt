@@ -1,0 +1,17 @@
+python-dotenv==0.21.0
+uvicorn[standard]==0.15.0
+python-multipart==0.0.5
+pydantic-settings
+langchain
+PyMuPDF
+requests
+fastapi
+sqlalchemy
+asyncpg
+motor
+aiofiles
+qdrant-client
+openai
+cohere
+pymongo
+bson
