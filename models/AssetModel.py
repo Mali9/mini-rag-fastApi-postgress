@@ -20,6 +20,14 @@ class AssetModel(BaseDataModel):
             await session.refresh(asset)
         return asset
     
+    async def get_all_assets(self, asset_type: str):
+        async with self.db_client() as session:
+            async with session.begin():
+                query = select(Asset).where(Asset.asset_type == asset_type)
+                assets = await session.execute(query)
+                assets = assets.scalars().all()
+        return assets
+    
     async def get_all_assets_by_project_id(self, project_id: int, asset_type: str):
         async with self.db_client() as session:
             async with session.begin():

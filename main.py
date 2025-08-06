@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 # from dotenv import load_dotenv
 # load_dotenv(".env")
 from routers import base
@@ -21,6 +21,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Referrer-Policy header
+@app.middleware("http")
+async def add_referrer_policy_header(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 @app.on_event("startup")
 async def startup():
         settings = get_settings()

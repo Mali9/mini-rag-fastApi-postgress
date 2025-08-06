@@ -16,6 +16,7 @@ from models.db_schemes.mini_rag.schemes import Project
 from models.db_schemes.mini_rag.schemes import DataChunks
 from models.db_schemes.mini_rag.schemes import Asset
 from models.AssetModel import AssetModel
+from sqlalchemy import select, func
 logger = logging.getLogger(__name__)
 
 data_router = APIRouter(prefix="/api/v1/data",tags=["data api's"])
@@ -116,6 +117,50 @@ async def upload_data(request:Request,project_id:int,file:UploadFile,app_setting
     return JSONResponse(content={"file_name":file_name,"message":message,'project_id': str(project.project_id)}
                         ,status_code=status.HTTP_200_OK)
 
+@data_router.get("/chunks")
+async def get_chunks(request: Request, page: int = 1, limit: int = 20):
+    chunk_model = await ChunkDataModel.create_instance(db_client=request.app.db_client)
+    chunks = await chunk_model.get_all_chunks(page=page, limit=limit)
+    # Get total count for all chunks
+    async with chunk_model.db_client() as session:
+        async with session.begin():
+            query = select(func.count(DataChunks.chunk_id))
+            total_count = await session.execute(query)
+            total_count = total_count.scalar_one()
+    
+    return JSONResponse(content={
+        "chunks": chunks,
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total_count + limit - 1) // limit
+    }, status_code=status.HTTP_200_OK)
+
+@data_router.get("/chunks/{project_id}")
+async def get_chunks_by_project(request: Request, project_id: int, page: int = 1, limit: int = 20):
+    chunk_model = await ChunkDataModel.create_instance(db_client=request.app.db_client)
+    chunks = await chunk_model.get_project_chunks(project_id=project_id, page_no=page, page_size=limit)
+    total_count = await chunk_model.count_chunks_by_project_id(project_id=project_id)
+    chunks_dict = [
+        {
+            "chunk_id": chunk.chunk_id,
+            "chunk_text": chunk.chunk_text,
+            "chunk_metadata": chunk.chunk_metadata,
+            "chunk_order": chunk.chunk_order,
+            "chunk_asset_id": chunk.chunk_asset_id,
+            "chunk_project_id": chunk.chunk_project_id,
+            "created_at": chunk.created_at.isoformat() if chunk.created_at else None,
+            "updated_at": chunk.updated_at.isoformat() if chunk.updated_at else None
+        }
+        for chunk in chunks
+    ]
+    return JSONResponse(content={
+        "chunks": chunks_dict,
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total_count + limit - 1) // limit
+    }, status_code=status.HTTP_200_OK)
 
 @data_router.post("/process/{project_id}")
 async def process_data(request: Request, project_id: int, data: ProcessData, app_settings: Settings = Depends(get_settings)):
@@ -227,6 +272,42 @@ async def create_project(request: Request):
         "updated_at": project.updated_at.isoformat() if project.updated_at else None
     }
     return JSONResponse(content={"project": project_dict}, status_code=status.HTTP_200_OK)
+
+@data_router.get("/files")
+async def get_files(request: Request):
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+    assets = await asset_model.get_all_assets(asset_type='file')
+    assets_dict = [
+        {
+            "asset_id": asset.asset_id,
+            "asset_name": asset.asset_name,
+            "asset_type": asset.asset_type,
+            "asset_project_id": asset.asset_project_id,
+            "asset_size": asset.asset_size,
+            "asset_path": asset.asset_path
+        }
+        for asset in assets
+    ]
+    
+    return JSONResponse(content={"assets": assets_dict}, status_code=status.HTTP_200_OK)
+
+@data_router.get("/files/{project_id}")
+async def get_files_by_project(request: Request, project_id: int):
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+    assets = await asset_model.get_all_assets_by_project_id(project_id=project_id, asset_type='file')
+    assets_dict = [
+        {
+            "asset_id": asset.asset_id,
+            "asset_name": asset.asset_name,
+            "asset_type": asset.asset_type,
+            "asset_project_id": asset.asset_project_id,
+            "asset_size": asset.asset_size,
+            "asset_path": asset.asset_path
+        }
+        for asset in assets
+    ]
+    
+    return JSONResponse(content={"assets": assets_dict}, status_code=status.HTTP_200_OK)
 
 @data_router.get("/generate_text")
 def generate_text(request: Request, prompt: str):

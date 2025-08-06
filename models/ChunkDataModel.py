@@ -72,3 +72,23 @@ class ChunkDataModel(BaseDataModel):
                 count = await session.execute(query)
                 count = count.scalar_one()
         return count
+    
+    async def get_all_chunks(self, page: int = 1, limit: int = 20):
+        async with self.db_client() as session:
+            async with session.begin():
+                query = select(DataChunks).offset((page-1)*limit).limit(limit)
+                chunks = await session.execute(query)
+                chunks = chunks.scalars().all()
+                chunks_dict = [
+                    {
+                        "chunk_id": chunk.chunk_id,
+                        "chunk_text": chunk.chunk_text,
+                        "chunk_metadata": chunk.chunk_metadata,
+                        "chunk_asset_id": chunk.chunk_asset_id,
+                        "chunk_project_id": chunk.chunk_project_id,
+                        # "created_at": chunk.created_at,
+                        # "updated_at": chunk.updated_at
+                    }
+                    for chunk in chunks
+                ]
+        return chunks_dict
