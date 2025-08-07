@@ -17,6 +17,8 @@ from models.db_schemes.mini_rag.schemes import DataChunks
 from models.db_schemes.mini_rag.schemes import Asset
 from models.AssetModel import AssetModel
 from sqlalchemy import select, func
+from routers.schemes.project import CreateProject
+import uuid
 logger = logging.getLogger(__name__)
 
 data_router = APIRouter(prefix="/api/v1/data",tags=["data api's"])
@@ -63,6 +65,8 @@ async def get_projects_with_stats(request: Request):
             project_dict = {
                 "project_id": project.project_id,
                 "project_uuid": str(project.project_uuid),
+                "project_name": project.project_name,
+                "project_description": project.project_description,
                 "created_at": project.created_at.isoformat() if project.created_at else None,
                 "updated_at": project.updated_at.isoformat() if project.updated_at else None,
                 "file_count": file_count,
@@ -252,6 +256,8 @@ async def get_all_projects(request: Request):
     projects_dict = [
         {
             "project_id": project.project_id,
+            "project_name": project.project_name,
+            "project_description": project.project_description,
             "project_uuid": str(project.project_uuid),
             "created_at": project.created_at.isoformat() if project.created_at else None,
             "updated_at": project.updated_at.isoformat() if project.updated_at else None
@@ -261,51 +267,81 @@ async def get_all_projects(request: Request):
     return JSONResponse(content={"projects": projects_dict, "page": page, "total_pages": total_pages}, status_code=status.HTTP_200_OK)
 
 @data_router.post("/create_project")
-async def create_project(request: Request):
+async def create_project(request: Request, project: CreateProject):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
-    project = await project_model.create_project(Project(project_id=1))
+    last_project_id = await project_model.get_last_project_id()
+    project = await project_model.create_project(project=Project(
+        project_name=project.project_name, 
+        project_description=project.project_description,
+        project_id=last_project_id + 1,
+    ))
     # Convert SQLAlchemy object to dictionary
     project_dict = {
         "project_id": project.project_id,
+        "project_name": project.project_name,
+        "project_description": project.project_description,
         "project_uuid": str(project.project_uuid),
         "created_at": project.created_at.isoformat() if project.created_at else None,
         "updated_at": project.updated_at.isoformat() if project.updated_at else None
     }
     return JSONResponse(content={"project": project_dict}, status_code=status.HTTP_200_OK)
 
+@data_router.post("/edit_project/{project_id}")
+async def edit_project(request: Request, project_id: int ,project_data: CreateProject):
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project = await project_model.update_project(project_id=project_id, project_data=project_data)
+    return JSONResponse(content={"message": "Project updated successfully"}, status_code=status.HTTP_200_OK)
+
 @data_router.get("/files")
 async def get_files(request: Request):
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     assets = await asset_model.get_all_assets(asset_type='file')
-    assets_dict = [
-        {
+
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+
+    assets_dict = []
+
+    for asset in assets:
+        project = await project_model.get_project_or_create_new(project_id=asset.asset_project_id)
+        project_name = project.project_name if project else "Project " + str(asset.asset_project_id)
+
+        assets_dict.append({
             "asset_id": asset.asset_id,
             "asset_name": asset.asset_name,
             "asset_type": asset.asset_type,
             "asset_project_id": asset.asset_project_id,
+            "project_name": project_name,
             "asset_size": asset.asset_size,
-            "asset_path": asset.asset_path
-        }
-        for asset in assets
-    ]
-    
+            "asset_path": asset.asset_path,
+        })
+
     return JSONResponse(content={"assets": assets_dict}, status_code=status.HTTP_200_OK)
+
 
 @data_router.get("/files/{project_id}")
 async def get_files_by_project(request: Request, project_id: int):
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     assets = await asset_model.get_all_assets_by_project_id(project_id=project_id, asset_type='file')
-    assets_dict = [
-        {
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    
+    assets_dict = []
+
+    for asset in assets:
+        project = await project_model.get_project_or_create_new(project_id=asset.asset_project_id)
+        project_name = project.project_name if project else "Project " + str(asset.asset_project_id)
+
+        assets_dict.append({
             "asset_id": asset.asset_id,
             "asset_name": asset.asset_name,
             "asset_type": asset.asset_type,
             "asset_project_id": asset.asset_project_id,
+            "project_name": project_name,
             "asset_size": asset.asset_size,
-            "asset_path": asset.asset_path
-        }
-        for asset in assets
-    ]
+            "asset_path": asset.asset_path,
+        })
+
+
+
     
     return JSONResponse(content={"assets": assets_dict}, status_code=status.HTTP_200_OK)
 
