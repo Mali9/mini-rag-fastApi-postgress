@@ -140,7 +140,7 @@ async def answer(project_id: int, request: Request,search_request: SearchRequest
         results = nlpController.ansewr_rag_question(project=project, query=text,limit=5)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content=results,
+            content={"message": "success", "answer": results},
         )
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)})
