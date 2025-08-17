@@ -13,25 +13,25 @@ class QdrantDBProvider(VectorDBInterface):
         elif distance_method == DistanceType.DOT.value:
             self.distance_method = models.Distance.DOT
             
-    def connect(self):
+    async def connect(self):
         self.client = QdrantClient(path=self.db_path)
         # return self.client
-    def disconnect(self):
+    async def disconnect(self):
         self.client = None
         
-    def is_collection_exists(self, collection_name: str) -> bool:
+    async def is_collection_exists(self, collection_name: str) -> bool:
         return self.client.collection_exists(collection_name = collection_name)
     
-    def list_all_collections(self):
+    async def list_all_collections(self):
         return self.client.get_collections()
 
-    def get_collection_info(self, collection_name: str):
+    async def get_collection_info(self, collection_name: str):
         return self.client.get_collection(collection_name = collection_name)
     
-    def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str):
         if self.is_collection_exists(collection_name):
             return self.client.delete_collection(collection_name = collection_name)
-    def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+    async def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
         if do_reset:
             _ = self.delete_collection(collection_name)
         
@@ -43,7 +43,7 @@ class QdrantDBProvider(VectorDBInterface):
             return True
         return False
     
-    def insert_one(self, collection_name: str, text : str, vector: list , metadata: dict = None,record_id: str = None):
+    async def insert_one(self, collection_name: str, text : str, vector: list , metadata: dict = None,record_id: str = None):
         if self.is_collection_exists(collection_name):
             return False
         
@@ -63,7 +63,7 @@ class QdrantDBProvider(VectorDBInterface):
         return True
 
 
-    def insert_many(self, collection_name: str, texts: List[str], vectors: list, metadata: list = None, record_ids: list = None , batch_size: int = 50):
+    async def insert_many(self, collection_name: str, texts: List[str], vectors: list, metadata: list = None, record_ids: list = None , batch_size: int = 50):
         if not self.is_collection_exists(collection_name):
             return False
         if len(texts) != len(vectors):
@@ -102,7 +102,7 @@ class QdrantDBProvider(VectorDBInterface):
         return True
     
     
-    def search_by_vector(self, collection_name: str, vector: list,limit: int = 10):
+    async def search_by_vector(self, collection_name: str, vector: list,limit: int = 10):
         if not self.is_collection_exists(collection_name):
             return []
         return self.client.search(

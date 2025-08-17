@@ -1,8 +1,10 @@
 from .VectorDBInterface import VectorDBInterface
-from .VectorDBEnum import VectorDBType, DistanceType
+from .VectorDBEnum import VectorDBType, DistanceType,VectorDBIndexType
 from .providor.QdrantDBProvider import QdrantDBProvider
 import logging
 from controllers.BaseController import BaseController
+from .providor.PgvectorProvidor import PgvectorProvidor
+
 class VectorDBProviderFactory:
     """
     Factory class for creating Vector Database provider instances.
@@ -35,7 +37,13 @@ class VectorDBProviderFactory:
             db_path = self.base_controller.get_database_path(self.config.VECTOR_DB_PATH)
             distance_method = self.config.VECTOR_DB_DISTANCE_METRIC
             return QdrantDBProvider(db_path=db_path, distance_method=distance_method)
+        elif provider == VectorDBType.PGVECTOR.value:
+            return PgvectorProvidor(
+                db_client=self.db_client,
+                distance_method=self.config.VECTOR_DB_DISTANCE_METRIC,
+                default_vector_size=self.config.LLM_MODEL_SIZE,
+                index_threshold=self.config.VECTOR_DB_PGVEC_INDEX_THRESHOLD,
+            )
              
-        else:
-            raise ValueError(f"Unsupported provider type: {provider}")
+        return None
         

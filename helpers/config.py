@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     VECTOR_DB_TYPE: str = "QDRANT"
     VECTOR_DB_PATH: str = "src/assets/database/qdrant.db"
     VECTOR_DB_DISTANCE_METRIC: str = "Cosine"
+    VECTOR_DB_PGVEC_INDEX_THRESHOLD: int = 1000
 
     # --- Deprecated fields from user's .env to prevent validation errors ---
     # Please migrate to the LLM_... variables above
